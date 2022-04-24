@@ -1,0 +1,107 @@
+---
+title: "Practical Machine Learning Course Project"
+author: "Mario Reyes"
+date: "14/4/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(caret)
+library(dplyr)
+```
+
+## Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+The goal of the project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. Then, the model is used to predict the outcome in 20 test cases.
+
+
+## Download data
+```{r }
+
+url_training <- 'https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv'
+download.file(url_training, "pml-training.csv")
+  
+url_testing <- 'https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv'
+download.file(url_testing, "pml-testing.csv")
+
+```
+
+Read data
+```{r}
+training <- read.csv("pml-training.csv", na.strings=c("NA","#DIV/0!", ""))
+testing <- read.csv("pml-testing.csv", na.strings=c("NA","#DIV/0!", ""))
+dim(training);dim(testing)
+```
+
+
+## Cleaning the data
+The columns that contain at least a NA value are deleted. The number of variables are reduced to 60, from the original 120.
+
+```{r}
+not_any_na <- function(x) all(!is.na(x))
+training <- training %>% select(where(not_any_na))
+testing <- testing %>% select(where(not_any_na))
+dim(training);dim(testing)
+```
+
+The fist 7 columns were deleted, as they are variables that are not relevant for the prediction.
+```{r}
+training <- training %>% select(-c(1:7))
+testing <- testing %>% select(-c(1:7))
+dim(training); dim(testing)
+```
+
+
+## Data splitting
+
+Given that the training dataset is large enough, it was splitted in training and testing. 
+```{r}
+set.seed(2167)
+train <- createDataPartition(training$classe, p = 0.7, list = FALSE)
+mytraining <- training[train,]
+mytesting <- training[-train,]
+mytesting$classe <- as.factor(mytesting$classe)
+dim(mytraining); dim(mytesting)
+```
+
+## Model training
+
+Two models were tested: random forest and gradient boosting model, both in the caret package. The best model in terms of accuracy was selected.
+
+Random forest:
+
+```{r}
+mod_rf <- train(classe ~ ., data=mytraining, method="rf")
+pred_rf <- predict(mod_rf, newdata = mytesting)
+```
+
+A confusion matrix was created for the evaluation of the model
+```{r}
+cm_rf <- confusionMatrix(mytesting$classe, pred_rf)
+cm_rf
+```
+
+Gradient boosting model:
+```{r}
+mod_gbm <- train(classe ~ ., data=mytraining, method="gbm", verbose = FALSE)
+pred_gbm <- predict(mod_gbm, newdata = mytesting)
+```
+
+Confusion matrix:
+```{r}
+cm_gbm <- confusionMatrix(mytesting$classe, pred_gbm)
+cm_gbm
+```
+
+## Predicting the outcome for the testing dataset.
+The two models give slightly similar accuracy. The model used to predict the outcome for the testing data was random forest.
+```{r}
+pred_rf_test <- predict(mod_rf, newdata = testing)
+pred_rf_test
+```
+
+
+
